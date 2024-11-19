@@ -1,11 +1,11 @@
-import { HttpMethod, httpClient } from '@activepieces/pieces-common';
-import { googleGeminiAuth } from '../../index';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import {
   Property,
   Validators,
   createAction,
 } from '@activepieces/pieces-framework';
-import mime from 'mime-types';
+import { googleGeminiAuth } from '../../index';
+import { defaultLLM, getGeminiModelOptions } from '../common/common';
 
 export const generateContentFromImageAction = createAction({
   description:
@@ -25,32 +25,38 @@ export const generateContentFromImageAction = createAction({
       description: 'The image to generate content from.',
       validators: [Validators.image],
     }),
+    model: Property.Dropdown({
+      displayName: 'Model',
+      required: true,
+      description: 'The model which will generate the completion',
+      refreshers: [],
+      defaultValue: defaultLLM,
+      options: async ({ auth }) => getGeminiModelOptions({ auth }),
+    }),
   },
+
   async run({ auth, propsValue }) {
-    const request = await httpClient.sendRequest({
-      method: HttpMethod.POST,
-      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${auth}`,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: {
-        contents: [
-          {
-            parts: [
-              {
-                text: propsValue.prompt,
-              },
-              {
-                inline_data: {
-                  mime_type: mime.lookup(propsValue.image.filename),
-                  data: propsValue.image.base64,
-                },
-              },
-            ],
+    try {
+      const genAI = new GoogleGenerativeAI(auth);
+      const model = genAI.getGenerativeModel({ model: propsValue.model });
+      const result = await model.generateContent([
+        propsValue.prompt,
+        {
+          inlineData: {
+            data: propsValue.image.base64,
+            mimeType: `image/${propsValue.image.extension}`,
           },
-        ],
-      },
-    });
-    return request.body;
+        },
+      ]);
+
+      const response = result.response;
+      return {
+        text: response.text(),
+        raw: response,
+      };
+    } catch (error) {
+      console.error('Error in generate content from image:', error);
+      throw error;
+    }
   },
 });
