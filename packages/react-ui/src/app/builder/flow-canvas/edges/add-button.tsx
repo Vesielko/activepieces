@@ -14,12 +14,17 @@ import { useBuilderStateContext } from '../../builder-hooks';
 import { flowUtilConsts } from '../consts';
 import { ApButtonData } from '../types';
 
+import { AskAiIndicator, shouldShowAskAiIndicator } from './ask-ai-indicator';
+
 const ApAddButton = React.memo((props: ApButtonData) => {
   const [isStepInsideDropZone, setIsStepInsideDropzone] = useState(false);
-  const [activeDraggingStep, readonly] = useBuilderStateContext((state) => [
-    state.activeDraggingStep,
-    state.readonly,
-  ]);
+
+  const [activeDraggingStep, readonly, showAskAiIndicator] =
+    useBuilderStateContext((state) => [
+      state.activeDraggingStep,
+      state.readonly,
+      shouldShowAskAiIndicator(state, props),
+    ]);
 
   const { setNodeRef } = useDroppable({
     id: props.edgeId,
@@ -44,7 +49,13 @@ const ApAddButton = React.memo((props: ApButtonData) => {
 
   return (
     <>
-      {showDropIndicator && !readonly && (
+      {showAskAiIndicator && (
+        <AskAiIndicator
+          height={flowUtilConsts.AP_NODE_SIZE.ADD_BUTTON.height}
+          width={flowUtilConsts.AP_NODE_SIZE.ADD_BUTTON.width}
+        ></AskAiIndicator>
+      )}
+      {showDropIndicator && !readonly && !showAskAiIndicator && (
         <div
           style={{
             width: flowUtilConsts.AP_NODE_SIZE.ADD_BUTTON.width + 'px',
@@ -66,7 +77,7 @@ const ApAddButton = React.memo((props: ApButtonData) => {
           ></div>
         </div>
       )}
-      {!showDropIndicator && !readonly && (
+      {!showDropIndicator && !readonly && !showAskAiIndicator && (
         <PieceSelector
           operation={
             props.stepLocationRelativeToParent ===
