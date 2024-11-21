@@ -1,6 +1,6 @@
 import { typeboxResolver } from '@hookform/resolvers/typebox';
 import { Static, Type } from '@sinclair/typebox';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { t } from 'i18next';
 import { CopyIcon, Plus } from 'lucide-react';
 import { useState } from 'react';
@@ -35,7 +35,6 @@ import {
 } from '@/components/ui/tooltip';
 import { toast } from '@/components/ui/use-toast';
 import { PlatformRoleSelect } from '@/features/team/component/platform-role-select';
-import { ProjectRoleSelect } from '@/features/team/component/project-role-select';
 import { userInvitationApi } from '@/features/team/lib/user-invitation';
 import { useAuthorization } from '@/hooks/authorization-hooks';
 import { platformHooks } from '@/hooks/platform-hooks';
@@ -47,7 +46,6 @@ import {
   InvitationType,
   Permission,
   PlatformRole,
-  ProjectMemberRole,
   UserInvitationWithLink,
 } from '@activepieces/shared';
 
@@ -66,10 +64,22 @@ const FormSchema = Type.Object({
     errorMessage: t('Please select platform role'),
     required: true,
   }),
-  projectRole: Type.Enum(ProjectMemberRole, {
-    errorMessage: t('Please select project role'),
-    required: true,
-  }),
+  projectRole: Type.Object(
+    {
+      id: Type.String(),
+      created: Type.String(),
+      updated: Type.String(),
+      name: Type.String(),
+      permissions: Type.Array(Type.String()),
+      platformId: Type.String(),
+      type: Type.String(),
+      userCount: Type.Optional(Type.Number()),
+    },
+    {
+      errorMessage: t('Please select project role'),
+      required: true,
+    },
+  ),
 });
 
 type FormSchema = Static<typeof FormSchema>;
@@ -81,8 +91,8 @@ export function InviteUserDialog() {
   const { refetch } = userInvitationsHooks.useInvitations();
   const { project } = projectHooks.useCurrentProject();
   const currentUser = authenticationSession.getCurrentUser();
-  const { checkAccess } = useAuthorization();
-  const userHasPermissionToInviteUser = checkAccess(
+  const { useCheckAccess } = useAuthorization();
+  const userHasPermissionToInviteUser = useCheckAccess(
     Permission.WRITE_INVITATION,
   );
 
@@ -125,6 +135,13 @@ export function InviteUserDialog() {
     },
   });
 
+  const { data: rolesData, refetch: refetchRoles } = useQuery({
+    queryKey: ['project-roles'],
+    queryFn: () => userInvitationApi.listProjectRoles(),
+  });
+
+  const roles = rolesData?.data ?? [];
+
   const form = useForm<FormSchema>({
     resolver: typeboxResolver(FormSchema),
     defaultValues: {
@@ -133,7 +150,7 @@ export function InviteUserDialog() {
         ? InvitationType.PROJECT
         : InvitationType.PLATFORM,
       platformRole: PlatformRole.ADMIN,
-      projectRole: ProjectMemberRole.ADMIN,
+      projectRole: roles?.[0],
     },
   });
 
@@ -153,6 +170,7 @@ export function InviteUserDialog() {
           if (open) {
             form.reset();
             setInvitationLink('');
+            refetchRoles();
           }
         }}
       >
@@ -234,11 +252,44 @@ export function InviteUserDialog() {
                     </FormItem>
                   )}
                 ></FormField>
+
                 {form.getValues().type === InvitationType.PLATFORM && (
                   <PlatformRoleSelect form={form} />
                 )}
                 {form.getValues().type === InvitationType.PROJECT && (
-                  <ProjectRoleSelect form={form} />
+                  <FormField
+                    control={form.control}
+                    name="projectRole"
+                    render={({ field }) => (
+                      <FormItem className="grid gap-2">
+                        <Label>{t('Select Project Role')}</Label>
+                        <Select
+                          onValueChange={(value) => {
+                            const selectedRole = roles.find(
+                              (role) => role.id === value,
+                            );
+                            field.onChange(selectedRole);
+                          }}
+                          defaultValue={field.value?.id}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('Select Role')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectLabel>{t('Roles')}</SelectLabel>
+                              {roles.map((role) => (
+                                <SelectItem key={role.id} value={role.id}>
+                                  {role.name}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
 
                 {form?.formState?.errors?.root?.serverError && (

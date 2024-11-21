@@ -9,6 +9,7 @@ import {
     PlatformRole,
     ProjectId,
     ProjectMemberRole,
+    ProjectRole,
     SeekPage,
     UserId,
 } from '@activepieces/shared'
@@ -18,6 +19,7 @@ import { buildPaginator } from '../../helper/pagination/build-paginator'
 import { paginationHelper } from '../../helper/pagination/pagination-utils'
 import { projectService } from '../../project/project-service'
 import { userService } from '../../user/user-service'
+import { projectRoleService } from '../project-role/project-role.service'
 import {
     ProjectMemberEntity,
 } from './project-member.entity'
@@ -28,7 +30,7 @@ export const projectMemberService = {
     async upsert({
         userId,
         projectId,
-        role,
+        projectRole,
     }: UpsertParams): Promise<ProjectMember> {
         const { platformId } = await projectService.getOneOrThrow(projectId)
         const existingProjectMember = await repo().findOneBy({
@@ -38,13 +40,17 @@ export const projectMemberService = {
         })
         const projectMemberId = existingProjectMember?.id ?? apId()
 
+        if (!projectRole) {
+            throw new Error('Project Role is not found')
+        }
+
         const projectMember: NewProjectMember = {
             id: projectMemberId,
             updated: dayjs().toISOString(),
             userId,
             platformId,
             projectId,
-            role,
+            projectRole,
         }
 
         const upsertResult = await repo().upsert(projectMember, [
@@ -75,35 +81,51 @@ export const projectMemberService = {
         })
         const queryBuilder = repo()
             .createQueryBuilder('project_member')
+            .leftJoinAndSelect('project_member.projectRole', 'projectRole')
             .where({ projectId })
         const { data, cursor } = await paginator.paginate(queryBuilder)
         const enrichedData = await Promise.all(
-            data.map(enrichProjectMemberWithUser),
+            data.map(async (member) => {
+                const enrichedMember = await enrichProjectMemberWithUser(member)
+                return {
+                    ...enrichedMember,
+                    projectRole: member.projectRole,
+                }
+            }),
         )
         return paginationHelper.createPage<ProjectMemberWithUser>(enrichedData, cursor)
     },
+
     async getRole({
         userId,
         projectId,
     }: {
         projectId: ProjectId
         userId: UserId
-    }): Promise<ProjectMemberRole | null> {
+    }): Promise<ProjectRole | null> {
         const project = await projectService.getOneOrThrow(projectId)
         const user = await userService.getOneOrFail({
             id: userId,
         })
+
         if (user.id === project.ownerId) {
-            return ProjectMemberRole.ADMIN
+            return projectRoleService.getDefaultRoleByName(ProjectMemberRole.ADMIN)
         }
         if (project.platformId === user.platformId && user.platformRole === PlatformRole.ADMIN) {
-            return ProjectMemberRole.ADMIN
+            return projectRoleService.getDefaultRoleByName(ProjectMemberRole.ADMIN)
         }
-        const member = await repo().findOneBy({
-            projectId,
-            userId,
-        })
-        return member?.role ?? null
+        const member = await repo()
+            .createQueryBuilder('project_member')
+            .leftJoinAndSelect('project_member.projectRole', 'project_role')
+            .where('project_member.projectId = :projectId', { projectId })
+            .andWhere('project_member.userId = :userId', { userId })
+            .getOne()
+
+        if (!member) {
+            return null
+        }
+
+        return member.projectRole ?? null
     },
     async delete(
         projectId: ProjectId,
@@ -119,7 +141,7 @@ export const projectMemberService = {
 type UpsertParams = {
     userId: string
     projectId: ProjectId
-    role: ProjectMemberRole
+    projectRole: ProjectRole
 }
 
 type NewProjectMember = Omit<ProjectMember, 'created'>

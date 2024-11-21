@@ -6,7 +6,7 @@ import { PermissionNeededTooltip } from '@/components/ui/permission-needed-toolt
 import { useAuthorization } from '@/hooks/authorization-hooks';
 import { projectHooks } from '@/hooks/project-hooks';
 import { ProjectMemberWithUser } from '@activepieces/ee-shared';
-import { Permission, ProjectMemberRole } from '@activepieces/shared';
+import { Permission } from '@activepieces/shared';
 
 import { ConfirmationDeleteDialog } from '../../../components/delete-dialog';
 import { Avatar } from '../../../components/ui/avatar';
@@ -14,20 +14,14 @@ import { Button } from '../../../components/ui/button';
 import { projectMembersApi } from '../lib/project-members-api';
 import { projectMembersHooks } from '../lib/project-members-hooks';
 
-const roleToLabel = {
-  [ProjectMemberRole.ADMIN]: 'Project Admin',
-  [ProjectMemberRole.EDITOR]: 'Project Editor',
-  [ProjectMemberRole.VIEWER]: 'Project Viewer',
-  [ProjectMemberRole.OPERATOR]: 'Project Operator',
-};
 export function ProjectMemberCard({
   member,
 }: {
   member: ProjectMemberWithUser;
 }) {
   const { refetch } = projectMembersHooks.useProjectMembers();
-  const { checkAccess } = useAuthorization();
-  const userHasPermissionToRemoveMember = checkAccess(
+  const { useCheckAccess } = useAuthorization();
+  const userHasPermissionToRemoveMember = useCheckAccess(
     Permission.WRITE_PROJECT_MEMBER,
   );
   const { project } = projectHooks.useCurrentProject();
@@ -52,7 +46,7 @@ export function ProjectMemberCard({
         <div className="flex flex-col gap-1">
           <p className="text-sm font-medium leading-none">
             {member.user.firstName} {member.user.lastName} (
-            {roleToLabel[member.role]})
+            {member.projectRole.name})
           </p>
           <p className="text-sm text-muted-foreground">{member.user.email}</p>
         </div>

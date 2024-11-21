@@ -50,6 +50,7 @@ import AuditLogsPage from '../routes/platform/audit-logs';
 import { AINotification } from '../routes/platform/notifications/ai-notification';
 import ProjectsPage from '../routes/platform/projects';
 import { LicenseKeyPage } from '../routes/platform/settings/license-key';
+import { ProjectRolePage } from '../routes/platform/settings/project-role';
 import TemplatesPage from '../routes/platform/templates';
 import UsersPage from '../routes/platform/users';
 import { FlowRunPage } from '../routes/runs/id';
@@ -482,6 +483,18 @@ const routes = [
         <PlatformSettingsLayout>
           <PageTitle title="LicenseKey">
             <LicenseKeyPage />
+          </PageTitle>
+        </PlatformSettingsLayout>
+      </PlatformAdminContainer>
+    ),
+  },
+  {
+    path: '/platform/settings/project-role',
+    element: (
+      <PlatformAdminContainer>
+        <PlatformSettingsLayout>
+          <PageTitle title="Project Roles">
+            <ProjectRolePage />
           </PageTitle>
         </PlatformSettingsLayout>
       </PlatformAdminContainer>

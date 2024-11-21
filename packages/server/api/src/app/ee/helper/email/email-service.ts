@@ -29,7 +29,6 @@ export const emailService = {
         })
         const { email, platformId } = userInvitation
         const { name: projectOrPlatformName, role } = await getEntityNameForInvitation(userInvitation)
-
         await emailSender.send({
             emails: [email],
             platformId,
@@ -233,7 +232,7 @@ async function getEntityNameForInvitation(userInvitation: UserInvitation): Promi
             const project = await projectService.getOneOrThrow(userInvitation.projectId)
             return {
                 name: project.displayName,
-                role: capitalizeFirstLetter(userInvitation.projectRole),
+                role: capitalizeFirstLetter(userInvitation.projectRole.name),
             }
         }
     }

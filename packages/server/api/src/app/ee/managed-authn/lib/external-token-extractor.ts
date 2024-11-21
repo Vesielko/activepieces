@@ -1,8 +1,9 @@
 import { SigningKey, SigningKeyId } from '@activepieces/ee-shared'
 import { logger } from '@activepieces/server-shared'
-import { ActivepiecesError, ErrorCode, isNil, PiecesFilterType, ProjectMemberRole } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode, isNil, PiecesFilterType, ProjectMemberRole, ProjectRole } from '@activepieces/shared'
 import { Static, Type } from '@sinclair/typebox'
 import { JwtSignAlgorithm, jwtUtils } from '../../../helper/jwt-utils'
+import { projectRoleService } from '../../project-role/project-role.service'
 import { signingKeyService } from '../../signing-key/signing-key-service'
 
 const ALGORITHM = JwtSignAlgorithm.RS256
@@ -36,6 +37,8 @@ export const externalTokenExtractor = {
 
             const optionalEmail = payload.email ?? payload.externalUserId
 
+            const defaultRole = await projectRoleService.getDefaultRoleByName(ProjectMemberRole.EDITOR)
+
             const { piecesFilterType, piecesTags } = extractPieces(payload)
             return {
                 platformId: signingKey.platformId,
@@ -44,7 +47,7 @@ export const externalTokenExtractor = {
                 externalEmail: optionalEmail,
                 externalFirstName: payload.firstName,
                 externalLastName: payload.lastName,
-                role: payload?.role ?? ProjectMemberRole.EDITOR,
+                projectRole: payload?.projectRole ?? defaultRole,
                 tasks: payload?.tasks,
                 pieces: {
                     filterType: piecesFilterType ?? PiecesFilterType.NONE,
@@ -115,7 +118,16 @@ function externalTokenPayload() {
     const v2 = Type.Composite([v1,
         Type.Object({
             tasks: Type.Optional(Type.Number()),
-            role: Type.Optional(Type.Enum(ProjectMemberRole)),
+            projectRole: Type.Optional(Type.Object({
+                id: Type.String(),
+                created: Type.String(),
+                updated: Type.String(),
+                name: Type.String(),
+                permissions: Type.Array(Type.String()),
+                platformId: Type.Optional(Type.String()),
+                type: Type.String(),
+                userCount: Type.Optional(Type.Number()),
+            })),
             pieces: Type.Optional(Type.Object({
                 filterType: Type.Enum(PiecesFilterType),
                 tags: Type.Optional(Type.Array(Type.String())),
@@ -142,7 +154,7 @@ export type ExternalPrincipal = {
     externalEmail: string
     externalFirstName: string
     externalLastName: string
-    role: ProjectMemberRole
+    projectRole: ProjectRole
     pieces: {
         filterType: PiecesFilterType
         tags: string[]

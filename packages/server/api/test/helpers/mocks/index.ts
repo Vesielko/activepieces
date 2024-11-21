@@ -40,7 +40,8 @@ import {
     Project,
     ProjectMemberRole,
     ProjectPlan,
-    Rbac,
+    ProjectRole,
+    RoleType,
     RunEnvironment,
     TemplateType,
     TriggerType,
@@ -254,7 +255,15 @@ export const createMockProjectMember = (
         platformId: projectMember?.platformId ?? apId(),
         userId: projectMember?.userId,
         projectId: projectMember?.projectId ?? apId(),
-        role: projectMember?.role ?? faker.helpers.enumValue(ProjectMemberRole),
+        projectRole: projectMember?.projectRole ?? {
+            name: faker.helpers.enumValue(ProjectMemberRole),
+            permissions: [],
+            type: RoleType.DEFAULT,
+            platformId: projectMember?.platformId ?? apId(),
+            id: apId(),
+            created: faker.date.recent().toISOString(),
+            updated: faker.date.recent().toISOString(),
+        },
     }
 }
 
@@ -535,14 +544,15 @@ export const createMockFile = (file?: Partial<File>): File => {
     }
 }
 
-export const createMockRbac = (rbac?: Partial<Rbac>): Rbac => {
+export const createMockProjectRole = (projectRole?: Partial<ProjectRole>): ProjectRole => {
     return {
-        id: rbac?.id ?? apId(),
-        name: rbac?.name ?? faker.lorem.word(),
-        created: rbac?.created ?? faker.date.recent().toISOString(),
-        updated: rbac?.updated ?? faker.date.recent().toISOString(),
-        permissions: rbac?.permissions ?? [],
-        platformId: rbac?.platformId ?? apId(),
+        id: projectRole?.id ?? apId(),
+        name: projectRole?.name ?? faker.lorem.word(),
+        created: projectRole?.created ?? faker.date.recent().toISOString(),
+        updated: projectRole?.updated ?? faker.date.recent().toISOString(),
+        permissions: projectRole?.permissions ?? [],
+        platformId: projectRole?.platformId ?? apId(),
+        type: projectRole?.type ?? faker.helpers.enumValue(RoleType),
     }
 }
 

@@ -21,7 +21,7 @@ import dayjs from 'dayjs'
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { platformMustBeOwnedByCurrentUser, platformMustHaveFeatureEnabled } from '../ee/authentication/ee-authorization'
-import { assertRoleHasPermission } from '../ee/authentication/rbac/rbac-middleware'
+import { assertRoleHasPermission } from '../ee/authentication/project-role/project-role-middleware'
 import { projectMembersLimit } from '../ee/project-plan/members-limit'
 import { projectService } from '../project/project-service'
 import { userInvitationsService } from './user-invitation.service'
@@ -49,9 +49,10 @@ const invitationController: FastifyPluginAsyncTypebox = async (
             await projectMembersLimit.limit({
                 projectId: request.body.projectId,
                 platformId: request.principal.platform.id,
-                role: request.body.projectRole,
+                projectRole: request.body.projectRole,
             })
         }
+
         const platformId = request.principal.platform.id
         const invitation = await userInvitationsService.create({
             email,
